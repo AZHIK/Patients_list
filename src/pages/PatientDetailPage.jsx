@@ -1,11 +1,15 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getPatients } from "../api/patientApi";
+import "./PatientDetailPage.css";
 
 function PatientDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [patient, setPatient] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadPatient();
@@ -13,51 +17,150 @@ function PatientDetailPage() {
 
   const loadPatient = async () => {
     try {
-      const data = await getPatients(id);
+      setLoading(true);
+      setError("");
 
-      setPatient(Array.isArray(data) ? data[0] : data);
+      const result = await getPatients(id);
+
+      console.log("Patient detail response:", result);
+
+      // API structure:
+      // result = {
+      //   current_page: 1,
+      //   total: 1,
+      //   data: [...]
+      // }
+
+      const patientData = Array.isArray(result?.data)
+        ? result.data[0]
+        : null;
+
+      if (!patientData) {
+        setError("Patient not found.");
+        return;
+      }
+
+      setPatient(patientData);
     } catch (error) {
-      console.error(error);
+      console.error("Failed to load patient:", error);
+      setError("Failed to load patient details.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!patient) return <h3>Loading...</h3>;
+  if (loading) {
+    return (
+      <div className="app-content">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading patient details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !patient) {
+    return (
+      <div className="app-content">
+        <div className="page-header">
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate("/")}
+          >
+            ← Back to Patients
+          </button>
+        </div>
+
+        <div className="alert alert-error">
+          {error || "Patient not found"}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <h2>Patient Demographics</h2>
+    <div className="app-content">
+      <div className="page-header">
+        <button
+          className="btn btn-secondary"
+          onClick={() => navigate("/")}
+        >
+          ← Back to Patients
+        </button>
+      </div>
 
-      <p>
-        <strong>Patient Name:</strong>{" "}
-        {patient.Patient_Name}
-      </p>
+      <div className="patient-detail-grid">
+        <div className="card">
+          <div className="card-header">
+            <h2>{patient.Patient_Name || "N/A"}</h2>
 
-      <p>
-        <strong>Gender:</strong>{" "}
-        {patient.Gender === "M"
-          ? "Male"
-          : patient.Gender === "F"
-          ? "Female"
-          : patient.Gender}
-      </p>
+            <p className="patient-id">
+              ID: {patient.Registration_ID || "N/A"}
+            </p>
+          </div>
 
-      <p>
-        <strong>Date of Birth:</strong>{" "}
-        {patient.Date_Of_Birth}
-      </p>
+          <div className="card-body">
+            <div className="detail-group">
+              <label className="detail-label">
+                Gender
+              </label>
 
-      <p>
-        <strong>Region:</strong> {patient.Region}
-      </p>
+              <div className="detail-value">
+                <span className="badge badge-primary">
+                  {patient.Gender === "M"
+                    ? "Male"
+                    : patient.Gender === "F"
+                    ? "Female"
+                    : patient.Gender || "N/A"}
+                </span>
+              </div>
+            </div>
 
-      <p>
-        <strong>Ward:</strong> {patient.Ward}
-      </p>
+            <div className="detail-group">
+              <label className="detail-label">
+                Date of Birth
+              </label>
 
-      <p>
-        <strong>Guarantor Name:</strong>{" "}
-        {patient.sponsor?.Guarantor_Name || "N/A"}
-      </p>
+              <p className="detail-value">
+                {patient.Date_Of_Birth || "N/A"}
+              </p>
+            </div>
+
+            <div className="detail-group">
+              <label className="detail-label">
+                Region
+              </label>
+
+              <p className="detail-value">
+                {patient.Region || "N/A"}
+              </p>
+            </div>
+
+            <div className="detail-group">
+              <label className="detail-label">
+                Ward
+              </label>
+
+              <p className="detail-value">
+                {patient.Ward || "N/A"}
+              </p>
+            </div>
+
+            <div className="detail-group">
+              <label className="detail-label">
+                Guarantor Name
+              </label>
+
+              <p className="detail-value">
+                {patient.sponsor?.Guarantor_Name ||
+                  patient.nextKinName ||
+                  "N/A"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

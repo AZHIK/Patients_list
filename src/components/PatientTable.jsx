@@ -99,34 +99,49 @@ function Patients({ registrationId }) {
   };
 
   // Save patient
-  const handleSave = async () => {
-    if (!selectedPatient) return;
+ const handleSave = async () => {
+  if (!selectedPatient) return;
 
-    try {
-      setSaving(true);
+  try {
+    setSaving(true);
+    setError("");
 
-      await updatePatient(
-        selectedPatient.Registration_ID,
-        {
-          Patient_Name: editForm.Patient_Name,
-          Gender: editForm.Gender,
-        }
-      );
+    const payload = {
+      Patient_Name: editForm.Patient_Name,
+      Gender: editForm.Gender,
+    };
 
-      // Close dialog
-      setEditOpen(false);
-      setSelectedPatient(null);
+    console.log("PUT URL:", selectedPatient.Registration_ID);
+    console.log("PUT payload:", payload);
 
-      // Reload current page
-      await fetchPatients();
-    } catch (error) {
-      console.error("Failed to update patient:", error);
+    const response = await updatePatient(
+      selectedPatient.Registration_ID,
+      payload
+    );
 
-      setError("Failed to update patient.");
-    } finally {
-      setSaving(false);
-    }
-  };
+    console.log("PUT response:", response);
+
+    setEditOpen(false);
+    setSelectedPatient(null);
+
+    await fetchPatients();
+  } catch (error) {
+    console.error("UPDATE ERROR:", error);
+
+    console.error("Status:", error.response?.status);
+    console.error("Response:", error.response?.data);
+    console.error("Headers:", error.response?.headers);
+
+    setError(
+      error.response?.data?.message ||
+      `Failed to update patient. Status: ${
+        error.response?.status || "Unknown"
+      }`
+    );
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handlePatientClick = (patient) => {
     navigate(
@@ -194,128 +209,226 @@ function Patients({ registrationId }) {
     },
   ];
 
-  if (error) {
-    return (
-      <div>
-        <p>{error}</p>
-
-        <Button onClick={fetchPatients}>
-          Try Again
-        </Button>
-      </div>
-    );
-  }
 
   return (
-    <div style={{ width: "100%" }}>
-      <h2>Patients</h2>
-
-      <div
-        style={{
-          height: 600,
-          width: "100%",
-        }}
-      >
-        <DataGrid
-          rows={patients}
-          columns={columns}
-          getRowId={(row) =>
-            row.Registration_ID
-          }
-
-          loading={loading}
-
-          pagination
-          paginationMode="server"
-
-          rowCount={
-            pagination?.total ?? 0
-          }
-
-          paginationModel={{
-            page: currentPage - 1,
-            pageSize:
-              pagination?.per_page ?? 15,
-          }}
-
-          onPaginationModelChange={(model) => {
-            setCurrentPage(model.page + 1);
-          }}
-
-          pageSizeOptions={[15]}
-
-          onRowClick={(params) => {
-            handlePatientClick(
-              params.row
-            );
-          }}
-        />
+    <div className="app-content">
+      <div className="page-header">
+        <h2 className="page-title">Patient Directory</h2>
       </div>
 
-      {/* Edit Patient Dialog */}
+      {error && (
+        <div className="alert alert-error">
+          <span>{error}</span>
+        </div>
+      )}
 
-      <Dialog
-        open={editOpen}
-        onClose={handleCloseEdit}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>
-          Edit Patient
-        </DialogTitle>
-
-        <DialogContent>
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Patient Name"
-            name="Patient_Name"
-            value={editForm.Patient_Name}
-            onChange={handleChange}
-          />
-
-          <FormControl
-            fullWidth
-            margin="normal"
+      <div className="card" style={{ marginBottom: "1.5rem" }}>
+          <div
+            style={{
+              height: 600,
+              width: "100%",
+            }}
           >
-            <InputLabel>
-              Gender
-            </InputLabel>
+            <DataGrid
+              rows={patients}
+              columns={columns}
+              getRowId={(row) =>
+                row.Registration_ID
+              }
 
-            <Select
-              name="Gender"
-              value={editForm.Gender}
-              label="Gender"
+              loading={loading}
+
+              pagination
+              paginationMode="server"
+
+              rowCount={
+                pagination?.total ?? 0
+              }
+
+              paginationModel={{
+                page: currentPage - 1,
+                pageSize:
+                  pagination?.per_page ?? 15,
+              }}
+
+              onPaginationModelChange={(model) => {
+                setCurrentPage(model.page + 1);
+              }}
+
+              pageSizeOptions={[15]}
+
+              onRowClick={(params) => {
+                handlePatientClick(
+                  params.row
+                );
+              }}
+              sx={{
+                border: "none",
+                backgroundColor: "var(--bg)",
+                color: "var(--text)",
+                "& .MuiDataGrid-root": {
+                  border: "none",
+                  backgroundColor: "var(--bg)",
+                  color: "var(--text)",
+                },
+                "& .MuiDataGrid-cell": {
+                  borderBottomColor: "var(--border)",
+                  color: "var(--text)",
+                },
+                "& .MuiDataGrid-columnHeader": {
+                  backgroundColor: "var(--bg-secondary)",
+                  color: "var(--text-h)",
+                  fontWeight: 600,
+                  borderBottomColor: "var(--border)",
+                },
+                "& .MuiDataGrid-row": {
+                  backgroundColor: "var(--bg)",
+                  color: "var(--text)",
+                  "&:hover": {
+                    backgroundColor: "var(--bg-secondary)",
+                    cursor: "pointer",
+                  },
+                },
+                "& .MuiTablePagination-root": {
+                  borderTopColor: "var(--border)",
+                  color: "var(--text)",
+                },
+                "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows": {
+                  color: "var(--text)",
+                  margin: 0,
+                },
+                "& .MuiSelect-root": {
+                  color: "var(--text)",
+                },
+                "& .MuiButton-root": {
+                  textTransform: "none",
+                  color: "var(--primary)",
+                },
+                "& .MuiButton-outlined": {
+                  borderColor: "var(--border)",
+                  color: "var(--primary)",
+                  "&:hover": {
+                    backgroundColor: "rgba(59, 130, 246, 0.05)",
+                  },
+                },
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Edit Patient Dialog */}
+        <Dialog
+          open={editOpen}
+          onClose={handleCloseEdit}
+          fullWidth
+          maxWidth="sm"
+          PaperProps={{
+            sx: {
+              backgroundColor: "var(--bg)",
+              color: "var(--text)",
+            },
+          }}
+        >
+          <DialogTitle sx={{ color: "var(--text-h)", fontWeight: 600 }}>
+            Edit Patient
+          </DialogTitle>
+
+          <DialogContent sx={{ paddingTop: "1.5rem" }}>
+            <TextField
+              fullWidth
+              margin="normal"
+              label="Patient Name"
+              name="Patient_Name"
+              value={editForm.Patient_Name}
               onChange={handleChange}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  color: "var(--text)",
+                  "& fieldset": {
+                    borderColor: "var(--border)",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: "var(--primary)",
+                  },
+                },
+                "& .MuiInputBase-input::placeholder": {
+                  color: "var(--text-light)",
+                  opacity: 1,
+                },
+              }}
+            />
+
+            <FormControl
+              fullWidth
+              margin="normal"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  color: "var(--text)",
+                  "& fieldset": {
+                    borderColor: "var(--border)",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: "var(--primary)",
+                  },
+                },
+              }}
             >
-              <MenuItem value="Male">
-                Male
-              </MenuItem>
+              <InputLabel sx={{ color: "var(--text-secondary)" }}>
+                Gender
+              </InputLabel>
 
-              <MenuItem value="Female">
-                Female
-              </MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
+              <Select
+                name="Gender"
+                value={editForm.Gender}
+                label="Gender"
+                onChange={handleChange}
+                sx={{
+                  color: "var(--text)",
+                }}
+              >
+                <MenuItem value="Male">
+                  Male
+                </MenuItem>
 
-        <DialogActions>
-          <Button
-            onClick={handleCloseEdit}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
+                <MenuItem value="Female">
+                  Female
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </DialogContent>
 
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? "Saving..." : "Save"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <DialogActions sx={{ padding: "1rem" }}>
+            <Button
+              onClick={handleCloseEdit}
+              disabled={saving}
+              sx={{
+                color: "var(--text)",
+              }}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              disabled={saving}
+              sx={{
+                backgroundColor: "var(--primary)",
+                color: "white",
+                textTransform: "none",
+                fontWeight: 500,
+                "&:hover": {
+                  backgroundColor: "var(--primary-dark)",
+                },
+                "&:disabled": {
+                  backgroundColor: "var(--text-light)",
+                },
+              }}
+            >
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </DialogActions>
+        </Dialog>
     </div>
   );
 }
