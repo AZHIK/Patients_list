@@ -1,528 +1,168 @@
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { DataGrid } from "@mui/x-data-grid";
+import { getPatients } from "../api/patientApi";
+import "./PatientDetailPage.css";
 
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
-} from "@mui/material";
-
-import {
-  getPatients,
-  updatePatient,
-} from "../api/patientApi";
-
-function Patients({ registrationId }) {
+function PatientDetailPage() {
+  const { id } = useParams();
   const navigate = useNavigate();
 
-  const [patients, setPatients] = useState([]);
-  const [pagination, setPagination] = useState(null);
-
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const [loading, setLoading] = useState(false);
+  const [patient, setPatient] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Edit dialog
-  const [editOpen, setEditOpen] = useState(false);
-
-  const [selectedPatient, setSelectedPatient] =
-    useState(null);
-
-  const [editForm, setEditForm] = useState({
-    Patient_Name: "",
-    Gender: "",
-  });
-
-  const [saving, setSaving] = useState(false);
-
   useEffect(() => {
-    fetchPatients();
-  }, [registrationId, currentPage]);
+    loadPatient();
+  }, [id]);
 
-  const fetchPatients = async () => {
+  const loadPatient = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const result = await getPatients(
-        registrationId,
-        currentPage
-      );
+      const result = await getPatients(id);
 
-      console.log("Patients response:", result);
+      console.log("Patient detail response:", result);
 
-      setPatients(result.data);
-      setPagination(result);
+      // API structure:
+      // result = {
+      //   current_page: 1,
+      //   total: 1,
+      //   data: [...]
+      // }
+
+      const patientData = Array.isArray(result?.data)
+        ? result.data[0]
+        : null;
+
+      if (!patientData) {
+        setError("Patient not found.");
+        return;
+      }
+
+      setPatient(patientData);
     } catch (error) {
-      console.error(
-        "Failed to fetch patients:",
-        error
-      );
-
-      setError("Failed to load patients.");
+      console.error("Failed to load patient:", error);
+      setError("Failed to load patient details.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Open edit dialog
-  const handleEdit = (patient) => {
-    setSelectedPatient(patient);
-
-    setEditForm({
-      Patient_Name: patient.Patient_Name || "",
-      Gender: patient.Gender || "",
-    });
-
-    setEditOpen(true);
-  };
-
-  // Close edit dialog
-  const handleCloseEdit = () => {
-    if (saving) return;
-
-    setEditOpen(false);
-    setSelectedPatient(null);
-  };
-
-  // Handle form changes
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-
-    setEditForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-  // Save patient
-  const handleSave = async () => {
-    if (!selectedPatient) return;
-
-    try {
-      setSaving(true);
-      setError("");
-
-      const payload = {
-        Patient_Name: editForm.Patient_Name,
-        Gender: editForm.Gender,
-      };
-
-      console.log(
-        "PUT URL:",
-        selectedPatient.Registration_ID
-      );
-
-      console.log("PUT payload:", payload);
-
-      const response = await updatePatient(
-        selectedPatient.Registration_ID,
-        payload
-      );
-
-      console.log("PUT response:", response);
-
-      setEditOpen(false);
-      setSelectedPatient(null);
-
-      await fetchPatients();
-    } catch (error) {
-      console.error("UPDATE ERROR:", error);
-
-      console.error(
-        "Status:",
-        error.response?.status
-      );
-
-      console.error(
-        "Response:",
-        error.response?.data
-      );
-
-      console.error(
-        "Headers:",
-        error.response?.headers
-      );
-
-      setError(
-        error.response?.data?.message ||
-          `Failed to update patient. Status: ${
-            error.response?.status || "Unknown"
-          }`
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Navigate to patient details
-  const handlePatientClick = (patient) => {
-    navigate(
-      `/patient/${patient.Registration_ID}`
+  if (loading) {
+    return (
+      <div className="app-content">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading patient details...</p>
+        </div>
+      </div>
     );
-  };
+  }
 
-  const columns = [
-    {
-      field: "Patient_Name",
-      headerName: "Patient Name",
-      flex: 1,
-      minWidth: 180,
-    },
+  if (error || !patient) {
+    return (
+      <div className="app-content">
+        <div className="page-header">
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate("/")}
+          >
+            ← Back to Patients
+          </button>
+        </div>
 
-    {
-      field: "Registration_ID",
-      headerName: "Patient Number",
-      flex: 1,
-      minWidth: 150,
-    },
-
-    {
-      field: "Guarantor_Name",
-      headerName: "Guarantor Name",
-      flex: 1,
-      minWidth: 180,
-
-      valueGetter: (value, row) =>
-        row.sponsor?.Guarantor_Name ||
-        row.nextKinName ||
-        "N/A",
-    },
-
-    {
-      field: "Date_Of_Birth",
-      headerName: "Date of Birth",
-      flex: 1,
-      minWidth: 140,
-    },
-
-    {
-      field: "Region",
-      headerName: "Region",
-      flex: 1,
-      minWidth: 130,
-    },
-
-    {
-      field: "Ward",
-      headerName: "Ward",
-      flex: 1,
-      minWidth: 130,
-    },
-
-    {
-      field: "actions",
-      headerName: "Actions",
-      width: 120,
-      sortable: false,
-      filterable: false,
-
-      renderCell: (params) => (
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={(event) => {
-            event.stopPropagation();
-
-            handleEdit(params.row);
-          }}
-        >
-          Edit
-        </Button>
-      ),
-    },
-  ];
+        <div className="alert alert-error">
+          {error || "Patient not found"}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-content">
       <div className="page-header">
-        <h2 className="page-title">
-          Patient Directory
-        </h2>
+        <button
+          className="btn btn-secondary"
+          onClick={() => navigate("/")}
+        >
+          ← Back to Patients
+        </button>
       </div>
 
-      {error && (
-        <div className="alert alert-error">
-          <span>{error}</span>
-        </div>
-      )}
+      <div className="patient-detail-grid">
+        <div className="card">
+          <div className="card-header">
+            <h2>{patient.Patient_Name || "N/A"}</h2>
 
-      <div
-        className="card"
-        style={{ marginBottom: "1.5rem" }}
-      >
-        <div
-          style={{
-            height: 600,
-            width: "100%",
-          }}
-        >
-          <DataGrid
-            rows={patients}
-            columns={columns}
-            getRowId={(row) =>
-              row.Registration_ID
-            }
+            <p className="patient-id">
+              ID: {patient.Registration_ID || "N/A"}
+            </p>
+          </div>
 
-            loading={loading}
+          <div className="card-body">
+            <div className="detail-group">
+              <label className="detail-label">
+                Gender
+              </label>
 
-            pagination
-            paginationMode="server"
+              <div className="detail-value">
+                <span className="badge badge-primary">
+                  {patient.Gender === "M"
+                    ? "Male"
+                    : patient.Gender === "F"
+                    ? "Female"
+                    : patient.Gender || "N/A"}
+                </span>
+              </div>
+            </div>
 
-            rowCount={
-              pagination?.total ?? 0
-            }
+            <div className="detail-group">
+              <label className="detail-label">
+                Date of Birth
+              </label>
 
-            paginationModel={{
-              page: currentPage - 1,
-              pageSize:
-                pagination?.per_page ?? 15,
-            }}
+              <p className="detail-value">
+                {patient.Date_Of_Birth || "N/A"}
+              </p>
+            </div>
 
-            onPaginationModelChange={(model) => {
-              setCurrentPage(model.page + 1);
-            }}
+            <div className="detail-group">
+              <label className="detail-label">
+                Region
+              </label>
 
-            pageSizeOptions={[15]}
+              <p className="detail-value">
+                {patient.Region || "N/A"}
+              </p>
+            </div>
 
-            onRowClick={(params) => {
-              handlePatientClick(
-                params.row
-              );
-            }}
+            <div className="detail-group">
+              <label className="detail-label">
+                Ward
+              </label>
 
-            sx={{
-              border: "none",
-              backgroundColor: "var(--bg)",
-              color: "var(--text)",
+              <p className="detail-value">
+                {patient.Ward || "N/A"}
+              </p>
+            </div>
 
-              "& .MuiDataGrid-root": {
-                border: "none",
-                backgroundColor: "var(--bg)",
-                color: "var(--text)",
-              },
+            <div className="detail-group">
+              <label className="detail-label">
+                Guarantor Name
+              </label>
 
-              "& .MuiDataGrid-cell": {
-                borderBottomColor:
-                  "var(--border)",
-                color: "var(--text)",
-              },
-
-              "& .MuiDataGrid-columnHeader": {
-                backgroundColor:
-                  "var(--bg-secondary)",
-                color: "var(--text-h)",
-                fontWeight: 600,
-                borderBottomColor:
-                  "var(--border)",
-              },
-
-              "& .MuiDataGrid-row": {
-                backgroundColor:
-                  "var(--bg)",
-                color: "var(--text)",
-
-                "&:hover": {
-                  backgroundColor:
-                    "var(--bg-secondary)",
-                  cursor: "pointer",
-                },
-              },
-
-              "& .MuiTablePagination-root": {
-                borderTopColor:
-                  "var(--border)",
-                color: "var(--text)",
-              },
-
-              "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows":
-                {
-                  color: "var(--text)",
-                  margin: 0,
-                },
-
-              "& .MuiSelect-root": {
-                color: "var(--text)",
-              },
-
-              "& .MuiButton-root": {
-                textTransform: "none",
-                color: "var(--primary)",
-              },
-
-              "& .MuiButton-outlined": {
-                borderColor: "var(--border)",
-                color: "var(--primary)",
-
-                "&:hover": {
-                  backgroundColor:
-                    "rgba(59, 130, 246, 0.05)",
-                },
-              },
-            }}
-          />
+              <p className="detail-value">
+                {patient.sponsor?.Guarantor_Name ||
+                  patient.nextKinName ||
+                  "N/A"}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Edit Patient Dialog */}
-      <Dialog
-        open={editOpen}
-        onClose={handleCloseEdit}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{
-          sx: {
-            backgroundColor: "var(--bg)",
-            color: "var(--text)",
-          },
-        }}
-      >
-        <DialogTitle
-          sx={{
-            color: "var(--text-h)",
-            fontWeight: 600,
-          }}
-        >
-          Edit Patient
-        </DialogTitle>
-
-        <DialogContent
-          sx={{
-            paddingTop: "1.5rem",
-          }}
-        >
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Patient Name"
-            name="Patient_Name"
-            value={editForm.Patient_Name}
-            onChange={handleChange}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                color: "var(--text)",
-
-                "& fieldset": {
-                  borderColor:
-                    "var(--border)",
-                },
-
-                "&:hover fieldset": {
-                  borderColor:
-                    "var(--primary)",
-                },
-              },
-
-              "& .MuiInputBase-input::placeholder":
-                {
-                  color: "var(--text-light)",
-                  opacity: 1,
-                },
-            }}
-          />
-
-          <FormControl
-            fullWidth
-            margin="normal"
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                color: "var(--text)",
-
-                "& fieldset": {
-                  borderColor:
-                    "var(--border)",
-                },
-
-                "&:hover fieldset": {
-                  borderColor:
-                    "var(--primary)",
-                },
-              },
-            }}
-          >
-            <InputLabel
-              sx={{
-                color:
-                  "var(--text-secondary)",
-              }}
-            >
-              Gender
-            </InputLabel>
-
-            <Select
-              name="Gender"
-              value={editForm.Gender}
-              label="Gender"
-              onChange={handleChange}
-              sx={{
-                color: "var(--text)",
-              }}
-            >
-              <MenuItem value="Male">
-                Male
-              </MenuItem>
-
-              <MenuItem value="Female">
-                Female
-              </MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
-
-        <DialogActions
-          sx={{
-            padding: "1rem",
-          }}
-        >
-          <Button
-            onClick={handleCloseEdit}
-            disabled={saving}
-            sx={{
-              color: "var(--text)",
-            }}
-          >
-            Cancel
-          </Button>
-
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={saving}
-            sx={{
-              backgroundColor:
-                "var(--primary)",
-              color: "white",
-              textTransform: "none",
-              fontWeight: 500,
-
-              "&:hover": {
-                backgroundColor:
-                  "var(--primary-dark)",
-              },
-
-              "&:disabled": {
-                backgroundColor:
-                  "var(--text-light)",
-              },
-            }}
-          >
-            {saving
-              ? "Saving..."
-              : "Save"}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </div>
   );
 }
 
-export default Patients;
+export default PatientDetailPage;
