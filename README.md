@@ -29,7 +29,7 @@ A modern React-based patient management system built with Vite, Material-UI, and
 
 1. Clone or navigate to the project directory:
 ```bash
-cd patient-app
+cd patients_list
 ```
 
 2. Install dependencies:
